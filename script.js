@@ -7,6 +7,8 @@ let isSettingDecimalPlaces = false; // Флаг для режима настро
 let timer = null; // Таймер для ожидания
 let startupSequence = ["Е", "СП", "С"]; // Последовательность запуска
 let startupIndex = 0; // Текущий индекс для последовательности запуска
+let memoryRegister = 0; // Регистр памяти
+
 
 // Элементы
 const indicator = document.getElementById("indicator");
@@ -197,6 +199,24 @@ function handlePercent() {
     }
   }
 
+  function handleMemoryClear() {
+    memoryRegister = 0;
+  }
+  
+  function handleMemoryAdd() {
+    if (currentInput) {
+      memoryRegister += parseFloat(currentInput);
+      updateDisplay(currentInput); // Показываем текущее значение
+    }
+  }
+  function handleMemorySub() {
+    if (currentInput) {
+      memoryRegister -= parseFloat(currentInput);
+      updateDisplay(currentInput); // Показываем текущее значение
+    }
+  }
+  
+
 // Обработчики кнопок
 buttons.forEach((button) => {
   button.addEventListener("click", () => {
@@ -243,6 +263,12 @@ buttons.forEach((button) => {
         handlePercent();
     } else if(action==="/-/"){
         handleUnary();
+    }else if (action === "СП") {
+      handleMemoryClear();
+    } else if (action === "П+") {
+      handleMemoryAdd();
+    }else if (action === "П-") {
+      handleMemorySub();
     }
   });
 });
