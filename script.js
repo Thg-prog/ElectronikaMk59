@@ -84,10 +84,10 @@ function handleSetDecimalPlaces() {
     timer = setTimeout(() => {
       if (currentInput) {
         let decimalInput = parseInt(currentInput, 10);
-        if (decimalInput >= 0 && decimalInput <= 15) {
+        if (decimalInput >= 0 && decimalInput <= 9) {
           decimalPlaces = decimalInput;
         } else {
-          updateDisplay("Ошибка! Разрядность от 1 до 15");
+          updateDisplay("Ошибка! Разрядность от 0 до 9");
         }
         isSettingDecimalPlaces = false;
         currentInput = "";
@@ -103,7 +103,7 @@ function handleSetDecimalPlaces() {
       updateDisplay("0");
       clearTimeout(timer);
     } else {
-      updateDisplay("Ошибка! Разрядность от 1 до 15");
+      updateDisplay("Ошибка! Разрядность от 0 до 9");
     }
   }
 }
@@ -215,13 +215,13 @@ buttons.forEach((button) => {
       timer = setTimeout(() => {
         if (currentInput) {
           let decimalInput = parseInt(currentInput, 10);
-          if (decimalInput >= 0 && decimalInput <= 15) {
+          if (decimalInput >= 0 && decimalInput <= 9) {
             decimalPlaces = decimalInput;
             isSettingDecimalPlaces = false;
             currentInput = "";
             updateDisplay("0");
           } else {
-            updateDisplay("Ошибка! Разрядность от 1 до 15");
+            updateDisplay("Ошибка! Разрядность от 0 до 9");
           }
         }
       }, 5000);
