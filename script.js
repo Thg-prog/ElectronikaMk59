@@ -59,6 +59,8 @@ function performCalculation(num1, num2, operation) {
   }
 }
 
+
+
 function handleEqual() {
   if (previousInput !== null && currentInput && currentOperation) {
     const result = performCalculation(previousInput, parseFloat(currentInput), currentOperation);
@@ -147,6 +149,11 @@ function handleUnary(){
     previousInput = parseFloat(currentInput);
     currentInput = "";
     currentOperation = null;
+}
+
+function handleIPaction(){
+  currentInput = memoryRegister;
+  updateDisplay(currentInput);
 }
 
 function handlePercent() {
@@ -269,6 +276,8 @@ buttons.forEach((button) => {
       handleMemoryAdd();
     }else if (action === "П-") {
       handleMemorySub();
+    } else if (action === "ИП"){
+      handleIPaction();
     }
   });
 });
