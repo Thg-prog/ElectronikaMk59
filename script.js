@@ -1,283 +1,414 @@
 // Переменные
-let currentInput = ""; // Текущее введённое число
-let previousInput = null; // Предыдущее число
-let currentOperation = null; // Выбранная операция
-let decimalPlaces = null; // Количество разрядов после запятой
-let isSettingDecimalPlaces = false; // Флаг для режима настройки разрядности
 let timer = null; // Таймер для ожидания
-let startupSequence = ["Е", "СП", "С"]; // Последовательность запуска
+let startupSequence = ["ke", "ksp", "kclear"]; // Последовательность запуска
 let startupIndex = 0; // Текущий индекс для последовательности запуска
 let memoryRegister = 0; // Регистр памяти
 
+let INPUT = '';
+let REAL = 0;
+let DECIMALS = 0;
+let EXPRESSION = [];
+let SAVEXPRESSION = [];
+
+let NEED_ERASE = true;
+
+let ISDOT = false;
+
+// -1 - DISABLED, 0 - NORMAL, 1 - DECIMAL, 2 - OVERFLOW
+let MODE = -1;
+
+let ISDECIMAL = false;
 
 // Элементы
 const indicator = document.getElementById("indicator");
 const buttons = document.querySelectorAll(".btn");
 
-// Функции
-function updateDisplay(value) {
-  if (decimalPlaces !== null && !isSettingDecimalPlaces) {
-    value = parseFloat(value).toFixed(decimalPlaces); // Округление до нужного количества знаков после запятой
-  } else {
-    value = parseFloat(value);
-  }
-  indicator.textContent = value;
-}
+const nums = [
+    document.getElementById('k7'),
+    document.getElementById('k8'),
+    document.getElementById('k9'),
+    document.getElementById('k4'),
+    document.getElementById('k5'),
+    document.getElementById('k6'),
+    document.getElementById('k1'),
+    document.getElementById('k2'),
+    document.getElementById('k3'),
+    document.getElementById('k0'),
+    document.getElementById('k00'),
+    document.getElementById('kdot'),
+];
 
-function handleNumberInput(number) {
-  currentInput += number;
-  updateDisplay(currentInput);
-}
+const operators = [
+    document.getElementById('kplus'),
+    document.getElementById('kminus'),
+    document.getElementById('kdiv'),
+    document.getElementById('kmul'),
+]
 
-function handleOperationInput(operation) {
-  if (currentInput) {
-    if (previousInput !== null && currentOperation) {
-      previousInput = performCalculation(previousInput, parseFloat(currentInput), currentOperation);
-    } else {
-      previousInput = parseFloat(currentInput);
-    }
-    updateDisplay(previousInput);
-    currentInput = "";
-  }
-  currentOperation = operation;
-}
-
-function performCalculation(num1, num2, operation) {
-  switch (operation) {
-    case "+":
-      return num1 + num2;
-    case "-":
-      return num1 - num2;
-    case "*":
-      return num1 * num2;
-    case "/":
-      return num2 !== 0 ? num1 / num2 : "Ошибка";
-    case "%":
-      return num1 % num2;
-    default:
-      return num2;
-  }
-}
-
-
-
-function handleEqual() {
-  if (previousInput !== null && currentInput && currentOperation) {
-    const result = performCalculation(previousInput, parseFloat(currentInput), currentOperation);
-    updateDisplay(result);
-    previousInput = result;
-    currentInput = "";
-    currentOperation = null;
-  }
-}
-
-function handleClear() {
-  currentInput = "";
-  previousInput = null;
-  currentOperation = null;
-  decimalPlaces = null;
-  isSettingDecimalPlaces = false;
-  updateDisplay("0");
-}
-
-function handleSetDecimalPlaces() {
-  if (!isSettingDecimalPlaces) {
-    isSettingDecimalPlaces = true; // Включаем режим для ввода количества знаков
-    currentInput = ""; // Очищаем ввод
-    updateDisplay("0");
-    timer = setTimeout(() => {
-      if (currentInput) {
-        let decimalInput = parseInt(currentInput, 10);
-        if (decimalInput >= 0 && decimalInput <= 9) {
-          decimalPlaces = decimalInput;
-        } else {
-          updateDisplay("Ошибка! Разрядность от 0 до 9");
+const functionals = {
+    kequal: (value) => {
+        if (value !== "") {
+            EXPRESSION.push(value);
         }
-        isSettingDecimalPlaces = false;
-        currentInput = "";
-        updateDisplay("0");
-      }
-    }, 5000);
-  } else {
-    let decimalInput = parseInt(currentInput, 10);
-    if (decimalInput >= 1 && decimalInput <= 15) {
-      decimalPlaces = decimalInput;
-      isSettingDecimalPlaces = false;
-      currentInput = "";
-      updateDisplay("0");
-      clearTimeout(timer);
-    } else {
-      updateDisplay("Ошибка! Разрядность от 0 до 9");
+
+        if (EXPRESSION.length == 1) {
+            SAVEXPRESSION.unshift(value);
+            EXPRESSION = SAVEXPRESSION;
+        }
+
+        const result = expressionProcess(EXPRESSION);
+        displayInput(result);
+        displayOutput(result);
+
+        if (EXPRESSION.length >= 2 ) {
+            SAVEXPRESSION = [EXPRESSION[EXPRESSION.length-2], EXPRESSION[EXPRESSION.length-1]];
+        }
+
+        console.log(EXPRESSION);
+        EXPRESSION = [];
+        displayPrepare();
+    },
+    kclear: () => {
+        displayInput("0");
+        displayOutput("0");
+
+        EXPRESSION = [];
+
+        displayPrepare();
+
+    },
+    kf: () => {
+        ISDECIMAL = true;
+    },
+
+    mminus: (value) => {
+        if (value) {
+            memoryRegister -= parseFloat(value);
+            displayPrepare();
+        }
+    },
+
+    mplus: (value) => {
+        if (value) {
+            memoryRegister += parseFloat(value);
+            displayPrepare();
+        }
+    },
+
+    ke: (value) => {
+        MODE = 0;
+        console.log(INPUT, REAL, indicator.textContent);
+        displayInput(value);
+        displayOutput(value);
+        console.log(INPUT, REAL, indicator.textContent);
+    },
+
+    tminus: (value) => {
+        value = parseFloat(-value);
+        displayInput(value);
+    },
+
+    ip: (value) => {
+        displayInput(memoryRegister);
+    },
+
+    ksp: (value) => {
+        displayInput(memoryRegister);
+        memoryRegister = 0;
+    },
+
+    kproc: (value) => {
+        if (EXPRESSION.length == 2) {
+            if (EXPRESSION[EXPRESSION.length - 1] == '/') {
+                displayInput(EXPRESSION[EXPRESSION.length - 2] / value * 100);
+            } else if (EXPRESSION[EXPRESSION.length - 1] == '*') {
+                displayInput(EXPRESSION[EXPRESSION.length - 2] * value / 100);
+            } else if (EXPRESSION[EXPRESSION.length - 1] == '+') {
+                displayInput(parseFloat(EXPRESSION[EXPRESSION.length - 2]) + parseFloat(EXPRESSION[EXPRESSION.length - 2] / 100 * value));
+            } else if (EXPRESSION[EXPRESSION.length - 1] == '-') {
+                displayInput(parseFloat(EXPRESSION[EXPRESSION.length - 2]) - parseFloat(EXPRESSION[EXPRESSION.length - 2] / 100 * value));
+            }
+            EXPRESSION = [];
+        } else if (EXPRESSION.length > 2) {
+            EXPRESSION = expressionSimplify(EXPRESSION);
+            functionals.kproc(value);
+        }
+    },
+
+    kswap: (value) => {
+        if (EXPRESSION.length > 2) {
+            EXPRESSION = [expressionProcess(EXPRESSION), EXPRESSION[EXPRESSION.length-1]];
+        }
+
+        if (EXPRESSION.length == 2) {
+            let tmp = value;
+            displayInput(EXPRESSION[EXPRESSION.length-2]);
+            displayOutput(EXPRESSION[EXPRESSION.length-2]);
+            EXPRESSION[EXPRESSION.length-2] = tmp;
+        } else if (EXPRESSION.length == 0) {
+            if (SAVEXPRESSION.length > 1) {
+                EXPRESSION.unshift(SAVEXPRESSION[1])
+                EXPRESSION.push(SAVEXPRESSION[0])
+            } else {
+                EXPRESSION.unshift(0);
+            }
+            functionals.kswap();
+        } else if (EXPRESSION.length == 1) {
+            let tmp = value;
+            displayInput(EXPRESSION[0])
+            displayOutput(EXPRESSION[0]);
+            EXPRESSION[0] = tmp;
+        }
+
+        NEED_ERASE = true;
+    },
+
+    summator: (value) => {
+        //let ex = [EXPRESSION[EXPRESSION.length - 2], EXPRESSION[EXPRESSION.length - 1]];
+        
+
+        //EXPRESSION.push(value);
+
+        //if (EXPRESSION.length == 1) {
+            //EXPRESSION.push(SAVEXPRESSION[0]);
+            //EXPRESSION.push(SAVEXPRESSION[1]);
+        //}
+
+        //const result = expressionProcess(EXPRESSION);
+        //displayInput(result);
+        //displayOutput(result);
+
+        //if (EXPRESSION.length >= 2 ) {
+            //SAVEXPRESSION = [EXPRESSION[EXPRESSION.length-2], EXPRESSION[EXPRESSION.length-1]];
+        //}
+
+        //EXPRESSION = [];
+
+        //EXPRESSION.push(result);
+        //EXPRESSION.push("+");
+        //EXPRESSION.push(memoryRegister);
+        //memoryRegister = expressionProcess(EXPRESSION);
+
+        //EXPRESSION = [];
+
+        //displayInput(memoryRegister);
+        //displayOutput(memoryRegister);
+        
+        functionals.kequal(value);
+        console.log(REAL);
+        functionals.mplus(REAL);
+        console.log(REAL);
+        //displayInput(memoryRegister);
+
+        NEED_ERASE = true;
     }
-  }
-}
-
-function handleSetRealPlaces() {
-  decimalPlaces = null;
-  isSettingDecimalPlaces = false;
-  updateDisplay(previousInput);
-}
-
-function addDot() {
-  if (!currentInput.includes('.')) {
-    currentInput += '.';
-    updateDisplay(currentInput);
-  }
 }
 
 function handleStartupSequence(action) {
   if (action === startupSequence[startupIndex]) {
     startupIndex++;
-    if (startupIndex === startupSequence.length) {
-      // Последовательность завершена
-      indicator.textContent = "0";
-    }
-  } else {
-    // Если последовательность нарушена, сбрасываем
-    startupIndex = 0;
-    
-  }
-}
+        if (startupIndex === startupSequence.length) {
+            displayInput("0");
+            displayOutput("0");
 
-function handleUnary(){
-    if(previousInput){
-        currentInput = (-parseFloat(previousInput)).toString();
-    }else{
-        currentInput = (-parseFloat(currentInput)).toString();
-    }
-    updateDisplay(currentInput);
-    previousInput = parseFloat(currentInput);
-    currentInput = "";
-    currentOperation = null;
-}
+            EXPRESSION = [];
 
-function handleIPaction(){
-  currentInput = memoryRegister;
-  updateDisplay(currentInput);
-}
-
-function handlePercent() {
-    if (previousInput !== null && currentOperation) {
-        previousInput = performCalculation(previousInput, parseFloat(currentInput), currentOperation);
-      }
-    if (previousInput !== null && currentInput) {
-      if (currentOperation === "+" || currentOperation === "-") {
-        // Добавление или вычитание процента
-        if(currentOperation ==="+"){
-            percentValue = ((previousInput-currentInput) * parseFloat(currentInput)) / 100;
-        }else{
-            percentValue = ((previousInput+parseFloat(currentInput)) * parseFloat(currentInput)) / 100;
+            displayPrepare();
+            MODE = 0;
         }
-        currentInput = currentOperation === "+" 
-          ? ((previousInput-currentInput) + percentValue).toString()
-          : ((parseFloat(previousInput)+parseFloat(currentInput)) - percentValue).toString();
-        updateDisplay(currentInput);
-        previousInput = parseFloat(currentInput);
-        currentInput = "";
-        currentOperation = null;
-      } else if (currentOperation === "*" ) {
-        // Процент как множитель
-        currentInput = (parseFloat(previousInput) / 100).toString();
-        updateDisplay(currentInput);
-        previousInput = parseFloat(currentInput);
-        currentInput = "";
-        currentOperation = null;
-      }else if(currentOperation ==="/"){
-        currentInput = (parseFloat(previousInput) * 100).toString();
-        updateDisplay(currentInput);
-        previousInput = parseFloat(currentInput);
-        currentInput = "";
-        currentOperation = null;
-      }
-    } else if (previousInput !== null && !currentInput) {
-      // Если введено только предыдущее число, считаем его процент
-      currentInput = (previousInput / 100).toString();
-      updateDisplay(currentInput);
-      previousInput = parseFloat(currentInput);
-      currentInput = "";
-      currentOperation = null;
-    } else if (currentInput) {
-      // Процент от текущего числа
-      currentInput = (parseFloat(currentInput) / 100).toString();
-      updateDisplay(currentInput);
-      previousInput = parseFloat(currentInput);
-      currentInput = "";
-      currentOperation = null;
+    } else {
+        startupIndex = 0;
     }
-  }
+}
 
-  function handleMemoryClear() {
-    memoryRegister = 0;
-  }
-  
-  function handleMemoryAdd() {
-    if (currentInput) {
-      memoryRegister += parseFloat(currentInput);
-      updateDisplay(currentInput); // Показываем текущее значение
-    }
-  }
-  function handleMemorySub() {
-    if (currentInput) {
-      memoryRegister -= parseFloat(currentInput);
-      updateDisplay(currentInput); // Показываем текущее значение
-    }
-  }
-  
-
-// Обработчики кнопок
-buttons.forEach((button) => {
-  button.addEventListener("click", () => {
-    const number = button.getAttribute("data-number");
-    const operation = button.getAttribute("data-operation");
-    const action = button.getAttribute("data-action");
-
-    if (startupIndex < startupSequence.length) {
-      handleStartupSequence(action); // Проверка последовательности запуска
-      return;
-    }
-
-    if (isSettingDecimalPlaces && number) {
-      handleNumberInput(number);
-      clearTimeout(timer);
-      timer = setTimeout(() => {
-        if (currentInput) {
-          let decimalInput = parseInt(currentInput, 10);
-          if (decimalInput >= 0 && decimalInput <= 9) {
-            decimalPlaces = decimalInput;
-            isSettingDecimalPlaces = false;
-            currentInput = "";
-            updateDisplay("0");
-          } else {
-            updateDisplay("Ошибка! Разрядность от 0 до 9");
-          }
+buttons.forEach(function(button) {
+    button.addEventListener('click', function() {
+        if (MODE == -1 && startupIndex < startupSequence.length) {
+            handleStartupSequence(button.id); // Проверка последовательности запуска
+            return;
         }
-      }, 5000);
-    } else if (number) {
-      handleNumberInput(number);
-    } else if (operation) {
-      handleOperationInput(operation);
-    } else if (action === "=") {
-      handleEqual();
-    } else if (action === "С") {
-      handleClear();
-    } else if (action === "Ф") {
-      handleSetDecimalPlaces();
-    } else if (action === ".") {
-      addDot();
-    } else if (action === "Е") {
-      handleSetRealPlaces();
-    }else if(action === "%"){
-        handlePercent();
-    } else if(action==="/-/"){
-        handleUnary();
-    }else if (action === "СП") {
-      handleMemoryClear();
-    } else if (action === "П+") {
-      handleMemoryAdd();
-    }else if (action === "П-") {
-      handleMemorySub();
-    } else if (action === "ИП"){
-      handleIPaction();
-    }
-  });
+
+        if (MODE == 2) {
+            if (button.id == "kclear") {
+                MODE = 0;
+                displayClear();
+            }
+
+            return;
+        }
+
+        if (nums.includes(button)) {
+            if (ISDECIMAL) {
+                MODE = 1;
+                DECIMALS = Number(button.value);
+                ISDECIMAL = false;
+
+                displayOutput();
+                //NEED_ERASE = true;
+                return;
+            }
+
+            if (NEED_ERASE) {
+                displayClear();
+            }
+
+            let str = INPUT;
+            let num = parseFloat(str);
+
+
+            if (button.id == "kdot") {
+                ISDOT = true;
+                if (str == "") {
+                    str = "0";
+                } else if (str.includes('.')) {
+                    return;
+                }
+            }
+
+            if (num.toString().replace('.', '').replace('-', '').length >= 8) {
+                return;
+            }
+
+            if ((button.id == "k0" || button.id == "k00") && str == 0 && !ISDOT) {
+                displayInput('0');
+                NEED_ERASE = true;
+                return;
+            }
+
+            str += button.value;
+            
+            displayInput(str);
+            return;
+        }
+
+        if (operators.includes(button)) {
+            if (INPUT !== "") {
+                EXPRESSION.push(INPUT);
+            }
+            EXPRESSION.push(button.value);
+            displayPrepare();
+        }
+
+        if (button.id in functionals) {
+            functionals[button.id](REAL);
+        }
+    });
 });
+
+function displayInput(str) {
+    if (str !== "") {
+        REAL = parseFloat(str);
+    }
+    console.log("REAL", REAL);
+
+
+    INPUT = str;
+
+    displayProcess();
+}
+
+function displayOutput() {
+    if (isNaN(INPUT)) {
+        indicator.textContent = ". . . . . . . .";
+        return;
+    }
+
+    if (INPUT == ".") {
+        INPUT = "0.";
+    }
+
+    if (MODE == 1) {
+        INPUT = parseFloat(REAL).toFixed(DECIMALS).toString();
+        displayProcess();
+    }
+
+    if (REAL % 1 == 0) {
+        console.log("FLOAT", REAL);
+    }
+
+}
+
+function displayClear(erase) {
+    INPUT = "";
+    REAL = 0;
+    displayProcess();
+    NEED_ERASE = false;
+    ISDOT = false;
+}
+
+function displayPrepare() {
+    NEED_ERASE = true;
+}
+
+function displayOverflow() {
+    MODE = 2;
+}
+
+function displayProcess() {
+    indicator.textContent = INPUT;
+}
+
+function expressionProcess(expression) {
+    if (expression.length === 0) return 0;
+
+    let result = Array.isArray(expression[0])
+    ? calculateExpression(expression[0])
+    : Number(expression[0]);
+
+    for (let i = 1; i < expression.length; i += 2) {
+       const operator = expression[i];
+         let nextNumber = Array.isArray(expression[i + 1])
+         ? calculateExpression(expression[i + 1])
+         : Number(expression[i + 1]);
+
+    if (!isNaN(nextNumber)) {
+        switch (operator) {
+            case '+':
+                result += nextNumber;
+                break;
+            case '-':
+                result -= nextNumber;
+                break;
+            case '*':
+                result *= nextNumber;
+                break;
+            case '/':
+                result /= nextNumber;
+                break;
+            }
+        }
+    }
+
+  return result;
+}
+
+function expressionSimplify(expression) {
+    let i = 0;
+    if (expression.length <= 3) {
+        return
+    }
+    
+    for (let i = 1; i < expression.length; i += 2) {
+        const operator = expression[i];
+
+        if (operator === '+' || operator === '-') {
+          const prevNumber = Number(expression[i - 1]);
+          const nextNumber = Number(expression[i + 1]);
+
+          let result;
+          if (operator === '+') {
+            result = prevNumber + nextNumber;
+          } else if (operator === '-') {
+            result = prevNumber - nextNumber;
+          } else if (operator === '*') {
+            result = prevNumber * nextNumber;
+          } else if (operator === '/') {
+            result = prevNumber / nextNumber;
+          }
+
+          expression.splice(i - 1, 3, result);
+        }
+    }
+
+    return expression;
+}
