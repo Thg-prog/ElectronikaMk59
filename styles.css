@@ -68,6 +68,14 @@ body {
     cursor: pointer;
     text-align: center;
   }
+
+  .span-2 {
+    grid-column: span 2; /* Заставляет кнопку занимать две колонки */
+  }
+  .span-21 {
+    grid-row: span 2; /* Заставляет кнопку занимать две колонки */
+  }
+    
   
   .btn:hover {
     background: #0056b3;
